@@ -2,11 +2,10 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const graphqlHttp = require('express-graphql');
 const mongoose = require('mongoose');
-const graphQlSchema= require('./graphql/schema/index');
-const graphQlResolvers= require('./graphql/resolvers/index');
-
+const graphQlSchema = require('./graphql/schema/index');
+const graphQlResolvers = require('./graphql/resolvers/index');
+const isAuth = require('./middleware/is-auth');
 const app = express();
-
 
 
 app.use(bodyParser.json());
@@ -17,16 +16,16 @@ app.use(bodyParser.json());
 
 
 //const events = [];
+app.use(isAuth);
 
-
-
-app.use('/graphql', graphqlHttp({
-    //Signature
-    schema: graphQlSchema,
-    //Implementation
-    rootValue: graphQlResolvers,
-    graphiql: true
-}));
+app.use('/graphql',
+    graphqlHttp({
+        //Signature
+        schema: graphQlSchema,
+        //Implementation
+        rootValue: graphQlResolvers,
+        graphiql: true
+    }));
 //Connect to db
 mongoose.connect(`mongodb+srv://${process.env.MONGO_USER}:${process.env.MONGO_PASSWORD}@cluster0-emzvw.gcp.mongodb.net/${process.env.MONGO_DB}?retryWrites=true&w=majority`, {useNewUrlParser: true})
     .then(() => {

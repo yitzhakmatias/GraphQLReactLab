@@ -1,7 +1,27 @@
 const Event = require('../../models/event');
 const User = require('../../models/user');
+const Booking = require('../../models/booking');
 const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 
+const transformEvent = (event) => {
+    return {
+        ...event._doc,
+        _id: event.id,
+        date: new Date(event._doc.date).toISOString(),
+        creator: user.bind(this, event._doc.creator)
+    }
+};
+const transformBooking = (booking) => {
+    return {
+        ...booking._doc,
+        _id: booking.id,
+        user: user.bind(this, booking._doc.user),
+        event: singleEvent.bind(this, booking._doc.event),
+        createdAt: new Date(booking._doc.createdAt).toISOString(),
+        updatedAt: new Date(booking._doc.updatedAt).toISOString()
+    }
+};
 const events = async (eventIds) => {
     //  console.log(eventIds);
     try {
@@ -36,19 +56,26 @@ const user = async (userId) => {
     //console.log(userId + "pepe");
 
 };
+const singleEvent = async eventId => {
+    try {
+        const event = await Event.findById(eventId);
+        return {
+            ...event._doc,
+            _id: event.id,
+            creator: user.bind(this, event.creator)
+        }
 
+    } catch (e) {
+        throw e;
+    }
+};
 module.exports =
     {
         events: async () => {
             try {
                 const events = await Event.find();
                 return events.map((e) => {
-                    return {
-                        ...e._doc,
-                        _id: e.id,
-                        date: new Date(e._doc.date).toISOString(),
-                        creator: user.bind(this, e._doc.creator)
-                    }
+                    return transformEvent(e);
                 });
             } catch (e) {
                 throw  e;
@@ -57,24 +84,23 @@ module.exports =
 
 
         },
-        createEvent: async (args) => {
+        createEvent: async (args, req) => {
+            if (!req.isAuth) {
+                throw new Error('not auth');
+            }
             const event = new Event({
                 title: args.eventInput.title,
                 description: args.eventInput.description,
                 price: args.eventInput.price,
                 date: new Date(args.eventInput.date),
-                creator: '5d6d47cf1afa442870f3caeb'
+                creator: req.userId//'5d6d47cf1afa442870f3caeb'
             });
             try {
                 let createdEvent;
                 const result = await event.save();
-                createdEvent = {
-                    ...result._doc,
-                    _id: result._doc._id.toString(),
-                    date: new Date(result._doc.date).toISOString(),
-                    creator: user.bind(this, result._doc.creator)
-                };
-                const creator = await User.findById('5d6d47cf1afa442870f3caeb');
+                createdEvent = transformEvent(result);
+
+                const creator = await User.findById(req.userId);
                 //  console.log(res);
                 //    return {...res._doc}
                 if (!creator) {
@@ -109,6 +135,71 @@ module.exports =
 
             } catch (e) {
                 throw e;
+            }
+        },
+        bookings: async (args, req) => {
+            if (!req.isAuth) {
+                throw new Error('not auth');
+            }
+            try {
+                const bookings = await Booking.find();
+                return bookings.map(booking => {
+                    return transformBooking(booking)
+                });
+            } catch (e) {
+                throw e;
+            }
+        },
+        bookEvent: async (args, req) => {
+            if (!req.isAuth) {
+                throw new Error('not auth');
+            }
+            const fetchedEvent = await Event.findOne({_id: args.eventId});
+            const booking = new Booking(
+                {
+                    user: req.userId,
+                    event: fetchedEvent,
+                    createdAt: Date.now().toString(),
+                    updatedAt: Date.now().toString()
+                });
+            try {
+                const result = await booking.save();
+                return transformBooking(result);
+            } catch (e) {
+                throw e;
+            }
+        },
+        cancelBooking: async (args, req) => {
+            if (!req.isAuth) {
+                throw new Error('not auth');
+            }
+            try {
+                const booking = await Booking.findById(args.bookingId).populate('event');
+                const event = transformEvent(booking.event);
+                await Booking.deleteOne({_id: args.bookingId});
+                return event
+            } catch (e) {
+                throw e;
+            }
+        },
+        login: async ({email, password}) => {
+            const user = await User.findOne({email: email});
+            if (!user) {
+                throw  new Error('not valid credentials');
+            }
+            const isEqual = await bcrypt.compare(password, user.password);
+            if (!isEqual) {
+                throw  new Error('Invalid credentials');
+            }
+            //secretKey any key
+            const token = jwt.sign({userId: user.id, email: user.email},
+                'secretKey',
+                {expiresIn: '1h'}
+            );
+            return {
+                userId: user.id,
+                token: token,
+                tokenExpiration: 1
             }
         }
     };
