@@ -1,10 +1,12 @@
 import React, {Component} from 'react'
 import './Auth.css';
+import AuthContext from '../context/auth-context'
 
 class AuthPage extends Component {
     state = {
         isLogin: false
     };
+    static  contextType = AuthContext;
 
     constructor(props) {
         super(props);
@@ -18,7 +20,7 @@ class AuthPage extends Component {
         });*/
         this.setState({isLogin: !this.state.isLogin});
 
-    }
+    };
 
     submitHandler = (event) => {
         event.preventDefault();
@@ -27,16 +29,29 @@ class AuthPage extends Component {
         if (email.trim().length === 0 || pass.trim().length === 0) {
             return;
         }
-        const requestBody = {
+        let requestBody = {
             query: `
-                mutation{
-                    createUser(userInput:{email:"${email}", password:"${pass}"}){
-                    _id
-                    email
-                    }
-                } 
+                query{
+                  login(email:"${email}",password:"${pass}"){
+                     userId
+                     token
+                     tokenExpiration
+                    } 
+                }
             `
         };
+
+        if (this.state.isLogin)
+            requestBody = {
+                query: `
+                  mutation{
+                      createUser(userInput:{email:"${email}", password:"${pass}"}){
+                      _id
+                      email
+                      }
+                  }
+              `
+            };
         fetch('http://localhost:3000/graphql', {
             method: 'POST',
             body: JSON.stringify(requestBody),
@@ -49,7 +64,12 @@ class AuthPage extends Component {
             }
             return res.json();
         }).then(resData => {
-            console.log(resData);
+            if (resData.data.login.token) {
+                this.context.login(
+                    resData.data.login.token,
+                    resData.data.login.userId,
+                    resData.data.login.tokenExpiration);
+            }
         }).catch((err) => {
             throw err;
         })
