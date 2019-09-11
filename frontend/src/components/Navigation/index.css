@@ -24,19 +24,34 @@
     list-style: none;
     padding: 0;
     margin: 0;
+    align-items: center;
 
 }
 .main-navigation_items li {
     margin: 0 1rem;
 }
 
-.main-navigation_items a {
+.main-navigation_items a,
+.main-navigation_items button
+{
     text-decoration: none;
     color: black;
+    padding: 0.25rem 0.5rem;
+    border: none;
+    font: inherit;
+    background: transparent;
+    cursor: pointer;
+    margin: 0;
+    vertical-align: middle;
 }
 
 .main-navigation_items a:hover,
 .main-navigation_items a:active,
-.main-navigation_items a.active{
+.main-navigation_items a.active,
+.main-navigation_items button:hover,
+.main-navigation_items button:active
+{
     color: aliceblue;
+    background: black;
+    border-radius: 5px;
 }
